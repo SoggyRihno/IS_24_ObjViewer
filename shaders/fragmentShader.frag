@@ -24,6 +24,7 @@ in vec2 TexCoord;
 uniform vec3 cameraPos;
 uniform vec3 matColor;
 uniform int mode;
+uniform int flatColor;
 uniform int hasDiffuse;
 
 uniform sampler2D diffuseTexture;
@@ -39,7 +40,7 @@ void main()
     }
 
     // ambient
-    vec3 ambient = light.ambient * material.Ka * 2;
+    vec3 ambient = light.ambient * material.Ka;
 
     // diffuse
     vec3 norm = normalize(FragNormal);
@@ -49,12 +50,12 @@ void main()
 
     if (hasDiffuse == 1) {
         diffuse *= diff * texture(diffuseTexture, TexCoord).rgb;
-        ambient = light.ambient * texture(diffuseTexture, TexCoord).rgb;
     } else {
         diffuse *= diff * material.Kd;
     }
 
-    vec3 lighting = ambient + diffuse;
-    FragColor = vec4(2 * lighting, 1);
+    vec3 lighting = (ambient + diffuse * 2);
+
+    FragColor = vec4(lighting, 1);
 
 }

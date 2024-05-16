@@ -11,6 +11,8 @@
 #include <mapbox/earcut.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
+#include <thread>
 #include "Program.h"
 #include "RenderGroup.h"
 
@@ -27,6 +29,7 @@ glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 bool firstMouse = true;
+float sensitivity = 0.1f;
 float yaw = -90.0f;
 float pitch = 0.0f;
 float lastX = 800.0f / 2.0;
@@ -60,6 +63,8 @@ static void processInput(GLFWwindow *window) {
     float cameraSpeed = 25 * deltaTime;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) // sprint
         cameraSpeed *= 9;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) // sprint
+        cameraSpeed *= 81;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) // forward
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) //back
@@ -69,23 +74,19 @@ static void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // right
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) // right
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
         mode = 1;
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) // right
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
         mode = 2;
-    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) // right
-        mode = 3;
-    if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) // right
-        mode = 4;
 
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) // flat color
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
         wireFrame = !wireFrame;
 
 }
 
 static void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
+    float xpos = float(xposIn);
+    float ypos = float(yposIn);
 
     if (firstMouse) {
         lastX = xpos;
@@ -93,33 +94,19 @@ static void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
         firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    yaw += (xpos - lastX) * sensitivity;
+    pitch = std::max(std::min(pitch += (lastY - ypos) * sensitivity, 89.0f), -89.0f);
+
+    cameraFront = glm::normalize(
+            glm::vec3(
+                    cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+                    sin(glm::radians(pitch)),
+                    sin(glm::radians(yaw)) * cos(glm::radians(pitch))));
     lastX = xpos;
     lastY = ypos;
-
-    float sensitivity = 0.1f; // change this value to your liking
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    // make sure that when pitch is out of bounds, screen doesn't get flipped
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 front;
-    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front.y = sin(glm::radians(pitch));
-    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(front);
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
+void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
@@ -172,11 +159,15 @@ int main(int argc, char *argv[]) {
         std::cout << "TinyObjReader: " << reader.Warning();
     }
 
-    std::vector<Material*> materials;
+    std::vector<Material *> materials;
     Material *default_material = new Material();
     materials.push_back(default_material);
 
-    for (const auto &mat_t: reader.GetMaterials()) {
+    auto &mat_ts = reader.GetMaterials();
+    int mat_count = 1;
+    for (const auto &mat_t: mat_ts) {
+        printf("Loading Material %d/%zu : %s \n", mat_count++, mat_ts.size(), mat_t.name.c_str());
+
         Material *material = new Material();
 
         material->name = mat_t.name;
@@ -200,10 +191,14 @@ int main(int argc, char *argv[]) {
 
     auto &attrib = reader.GetAttrib();
     std::vector<std::vector<Face>> matGroups(materials.size());
-    for (const auto &shape: reader.GetShapes()) {
+    auto vector = reader.GetShapes();
+    int shape_counter = 1;
+    for (const auto &shape: vector) {
         tinyobj::mesh_t mesh = shape.mesh;
-        int index_counter = 0;
+        printf("Loading Shape %d/%zu : %s \n\tFaces : %d\n", shape_counter++, vector.size(), shape.name.c_str(),
+               mesh.num_face_vertices.size());
 
+        int index_counter = 0;
         //face
         for (int i = 0; i < shape.mesh.num_face_vertices.size(); i++) {
             Face *face = new Face();
@@ -243,7 +238,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    std::vector<RenderGroup*> renderGroups;
+    std::vector<RenderGroup *> renderGroups;
 
     for (int i = 0; i < matGroups.size(); i++) {
         RenderGroup *group = new RenderGroup(matGroups.at(i), materials.at(i));
@@ -260,6 +255,11 @@ int main(int argc, char *argv[]) {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         processInput(window);
+
+        float sleep = (1.0f / 60.0f) - deltaTime;
+        if (sleep > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(sleep * 1000)));
+        }
 
         if (wireFrame) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -278,8 +278,8 @@ int main(int argc, char *argv[]) {
         program->setInt("mode", mode);
 
 
-        glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f); // decrease the influence
-        glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f); // low influence
+        glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f);
+        glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f);
 
         program->set3fv("light.position", lightPos);
         program->set3fv("light.ambient", ambientColor);
