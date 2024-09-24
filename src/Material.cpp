@@ -1,5 +1,14 @@
 #include "Material.h"
 
+enum USING_TEXTURE {
+    USE_AMBIENT_TEXTURE,
+    USE_DIFFUSE_TEXTURE,
+    USE_SPECULAR_TEXTURE,
+    USE_EMISSIVE_TEXTURE,
+    USE_SPECULAR_HIGHLIGHT_TEXTURE,
+    USE_BUMP_TEXTURE,
+};
+
 void Material::bind(const Program &program) const {
     program.set3fv("material.Ka", Ka);
     program.set3fv("material.Kd", Kd);

@@ -3,17 +3,12 @@
 #include <glm/vec3.hpp>
 #include "Program.h"
 
-enum USING_TEXTURE{
-    USE_AMBIENT_TEXTURE,
-    USE_DIFFUSE_TEXTURE,
-    USE_SPECULAR_TEXTURE,
-    USE_EMISSIVE_TEXTURE,
-    USE_SPECULAR_HIGHLIGHT_TEXTURE,
-    USE_BUMP_TEXTURE,
-};
+
 
 
 struct Material {
+    std::string name;
+
     glm::vec3 Ka = {0.2f, 0.2f, 0.2f};      //Ambient color of the material
     glm::vec3 Kd = {0.8f, 0.8f, 0.8f};      //Diffuse color of the material
     glm::vec3 Ks = {0.0f, 0.0f, 0.0f};      //Specular color of the material
@@ -21,7 +16,6 @@ struct Material {
 
     float Ns = 10.0f;                       //Specular exponent (shininess) of the material.
     float d = 1.0f;                         //Transparency of the material. Tr = 1-d
-
 
     int map_Ka = -1;                        //Ambient texture
     int map_Kd = -1;                        //Diffuse texture
@@ -34,6 +28,7 @@ struct Material {
 
     Material() = default;
 
-    ~Material() = default;
+    explicit Material(std::string name) : name(std::move(name)) {};
+
     void bind(const Program &program) const;
 };
