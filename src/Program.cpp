@@ -1,10 +1,13 @@
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include "Program.h"
 #include <glm/gtc/type_ptr.hpp>
 
-//todo should exceptions be used ? no reason to continue execution if shaders are fucked ?
-//exceptions are only non-performant if the are thrown but we arent catching them anyways
+/*
+ *  todo should exceptions be used ? no reason to continue execution if shaders are fucked ?
+ *  exceptions are only non-performant if the are thrown but we arent catching them anyways
+ */
 
 Program::Program(const std::string &vertPath, const std::string &fragPath) {
     uint32_t vertexShader = createShader(GL_VERTEX_SHADER, vertPath);
@@ -20,8 +23,9 @@ Program::Program(const std::string &vertPath, const std::string &fragPath) {
     glGetProgramiv(id, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(id, 1024, nullptr, infoLog);
-        printf("Error Shader Program Failed Linking\n%s\n", infoLog);
-
+        throw std::runtime_error(
+                std::string("Error Shader Program Failed Linking\n path :") + vertPath + std::string("\nLog :") +
+                std::string(infoLog) + std::string("\n"));
     }
 
     glDeleteShader(vertexShader);
@@ -33,7 +37,7 @@ Program::~Program() { glDeleteProgram(id); }
 uint32_t Program::createShader(uint32_t type, const std::string &shaderPath) {
     std::ifstream file(shaderPath, std::ios::binary);
     if (!file.is_open()) {
-        printf("Failed to open file\n%s\n", shaderPath.c_str());
+        throw std::runtime_error(std::string("Failed to open file ") + shaderPath + std::string("\n"));
     }
 
     std::string contents((std::istreambuf_iterator<char>(file)),
@@ -50,7 +54,8 @@ uint32_t Program::createShader(uint32_t type, const std::string &shaderPath) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-        if (type == GL_VERTEX_SHADER){
+        //no exception because shader error may still function partially and might be helpful for debugging todo might fix program compilation not throwing
+        if (type == GL_VERTEX_SHADER) {
             printf("Vertex shader compilation error\n%s\n", infoLog);
         } else {
             printf("Vertex fragment compilation error\n%s\n", infoLog);
@@ -70,6 +75,7 @@ void Program::setBool(const std::string &name, bool value) const {
 void Program::setInt(const std::string &name, int value) const {
     glUniform1i(glGetUniformLocation(id, name.c_str()), value);
 }
+
 void Program::setUInt(const std::string &name, uint32_t value) const {
     glUniform1ui(glGetUniformLocation(id, name.c_str()), value);
 }

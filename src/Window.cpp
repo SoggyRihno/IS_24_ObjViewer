@@ -11,7 +11,9 @@ Window::Window(int height, int width) :
         throw std::runtime_error("Could not init GLFW");
     }
 
-    glfwSetErrorCallback(error_callback);
+    glfwSetErrorCallback([](int error, const char *description) {
+        printf("Error: %s\n", description);
+    });
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -26,10 +28,13 @@ Window::Window(int height, int width) :
     }
 
     glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *glfWwindow, int width, int height) {
+        glViewport(0, 0, width, height);
+    });
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
-    glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 }
 
 Window::~Window() {
@@ -37,18 +42,36 @@ Window::~Window() {
     glfwTerminate();
 }
 
-void Window::error_callback(int error, const char *description) {
-    printf("Error: %s\n", description);
+
+void Window::update() const{
+    glfwSwapBuffers(window);
+    glfwPollEvents();
 }
 
-void Window::processInput(GLFWwindow *window) {
+void Window::updateCamera(Camera &camera, float deltaTime) const{
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+        camera.sprint(81);
+    else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.sprint(9);
 
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.forward(deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.back(deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.left(deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.right(deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    camera.updateMouse(static_cast<float>(x), static_cast<float>(y));
 }
 
-void Window::mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
-
+bool Window::shouldClose() const {
+    return glfwWindowShouldClose(window);
 }
 
-void Window::framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-    glViewport(0, 0, width, height);
-}

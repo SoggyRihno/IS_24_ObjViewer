@@ -2,36 +2,31 @@
 
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
+#include "Camera.h"
 
 
 //todo make config options better, maybe config file
 
 class Window {
 public:
-    static const Window &getInstance(){
+    //this cant be made internal only since it loads glad and needs to be call first
+
+    static const Window &getInstance() {
         static Window instance;
         return instance;
     };
 
-    void update() const{
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
+    void updateCamera(Camera &camera, float deltaTime) const;
+    void update() const;
+    bool shouldClose() const;
 
 private:
     GLFWwindow *window{};
     int width;
     int height;
+    float mouseX;
+    float mouseY;
 
-    Window(int height = 900, int width = 1600);
-
+    Window(int glfWwindow = 900, int width = 1600);
     ~Window();
-
-    static void error_callback(int error, const char *description);
-
-    static void processInput(GLFWwindow *window);
-
-    static void mouse_callback(GLFWwindow *window, double xposIn, double yposIn);
-
-    static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 };

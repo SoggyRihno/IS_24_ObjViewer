@@ -1,61 +1,99 @@
-#include <string>
-#include <iostream>
+#include <thread>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "Window.h"
 #include "Program.h"
+#include "Mesh.h"
+#include "Camera.h"
 
-int main (int argc, const char * argv[]){
-    const auto& window = Window::getInstance();
-    Program program("shaders/2d.vert","shaders/2d.frag");
+int main(int argc, const char *argv[]) {
+    const Window& window = Window::getInstance();
+    Program program("shaders/simple.vert", "shaders/simple.frag");
 
+    std::vector<float> verts = {
+            // Front face (z = 0.5f)
+            -0.5f, -0.5f, 0.5f,  // Bottom-left
+            0.5f, -0.5f, 0.5f,  // Bottom-right
+            0.5f, 0.5f, 0.5f,  // Top-right
+            0.5f, 0.5f, 0.5f,  // Top-right
+            -0.5f, 0.5f, 0.5f,  // Top-left
+            -0.5f, -0.5f, 0.5f,  // Bottom-left
 
-    // Set up vertex data and buffers
-    float vertices[] = {
-            // Positions
-            -0.5f, -0.5f, 0.0f,
-            0.5f, -0.5f, 0.0f,
-            0.0f,  0.5f, 0.0f
+            // Back face (z = -0.5f)
+            -0.5f, -0.5f, -0.5f,  // Bottom-left
+            0.5f, -0.5f, -0.5f,  // Bottom-right
+            0.5f, 0.5f, -0.5f,  // Top-right
+            0.5f, 0.5f, -0.5f,  // Top-right
+            -0.5f, 0.5f, -0.5f,  // Top-left
+            -0.5f, -0.5f, -0.5f,  // Bottom-left
+
+            // Left face (x = -0.5f)
+            -0.5f, 0.5f, 0.5f,  // Top-right
+            -0.5f, 0.5f, -0.5f,  // Top-left
+            -0.5f, -0.5f, -0.5f,  // Bottom-left
+            -0.5f, -0.5f, -0.5f,  // Bottom-left
+            -0.5f, -0.5f, 0.5f,  // Bottom-right
+            -0.5f, 0.5f, 0.5f,  // Top-right
+
+            // Right face (x = 0.5f)
+            0.5f, 0.5f, 0.5f,  // Top-left
+            0.5f, 0.5f, -0.5f,  // Top-right
+            0.5f, -0.5f, -0.5f,  // Bottom-right
+            0.5f, -0.5f, -0.5f,  // Bottom-right
+            0.5f, -0.5f, 0.5f,  // Bottom-left
+            0.5f, 0.5f, 0.5f,  // Top-left
+
+            // Top face (y = 0.5f)
+            -0.5f, 0.5f, 0.5f,  // Top-left
+            0.5f, 0.5f, 0.5f,  // Top-right
+            0.5f, 0.5f, -0.5f,  // Bottom-right
+            0.5f, 0.5f, -0.5f,  // Bottom-right
+            -0.5f, 0.5f, -0.5f,  // Bottom-left
+            -0.5f, 0.5f, 0.5f,  // Top-left
+
+            // Bottom face (y = -0.5f)
+            -0.5f, -0.5f, 0.5f,  // Top-left
+            0.5f, -0.5f, 0.5f,  // Top-right
+            0.5f, -0.5f, -0.5f,  // Bottom-right
+            0.5f, -0.5f, -0.5f,  // Bottom-right
+            -0.5f, -0.5f, -0.5f,  // Bottom-left
+            -0.5f, -0.5f, 0.5f   // Top-left
     };
 
-    GLuint VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
 
-    // Bind VAO first, then bind and set VBO, and configure vertex attributes
-    glBindVertexArray(VAO);
+    Mesh mesh(ProgramType::VERT, verts);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    program.use();
+    Camera camera(1600, 900);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    float deltaTime;
+    float lastFrame = 0.0f;
+    size_t frame = 0;
 
-    // Unbind VBO and VAO
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    while (!window.shouldClose()) {
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
-    // Render loop
-    while (true)
-    {
-        // Input
+        float sleep = (1.0f / 60.0f) - deltaTime;
+        if (sleep > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(sleep * 1000)));
+        }
 
-        // Render
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
 
-        // Draw the triangle
-        program.use();
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        window.updateCamera(camera, deltaTime);
+        camera.updateUniforms(program);
+        program.setMatx4fv("model", glm::mat4(1.0f));
 
-        // Swap buffers and poll IO events
+
+        mesh.render();
+
         window.update();
-
+        frame++;
+        if (frame % 60 == 0)
+            camera.print();
     }
-
-    // Clean up
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
 }
 
 

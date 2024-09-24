@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 project(ObjViewer)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -60,6 +60,14 @@ add_executable(${PROJECT_NAME}
         src/Window.h
         src/Window.cpp
         src/Program.cpp
+        src/Loader.h
+        src/Loader.h
+        src/Loader.cpp
+        src/Material.cpp
+        src/Material.h
+        src/Mesh.h
+        src/Mesh.cpp
+        src/Camera.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
