@@ -19,7 +19,7 @@ struct FaceType {
     ProgramType programType = ProgramType::VERT;
     ShadingType shadingType = ShadingType::Smooth;
 
-    FaceType() =default;
+    FaceType(uint32_t i): materialIndex(i) {};
     ~FaceType() =default;
 };
 

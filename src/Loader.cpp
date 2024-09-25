@@ -1,10 +1,10 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 
+#include <glad/glad.h>
 #include <tiny_obj_loader.h>
 #include <stb_image.h>
 #include <filesystem>
-
 #include "Loader.h"
 
 uint32_t Loader::getStride(ProgramType type) {
@@ -154,13 +154,6 @@ const std::vector<Mesh>& Loader::getMeshes() const{
  */
 
 
-/* todo re-examine naive obj loading
- *
- *
- *
- */
-
-
 bool Loader::loadObjFromFile(const std::string &file, const std::string &folder) {
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig config;
@@ -213,16 +206,15 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
 
         //each shape contains sub shapes with different materials
         // (ex. pencil has tip, shaft and eraser. all parts of a pencil but rendered differently)
-        std::unordered_map<FaceType, std::vector<float>> vertsByFaceType;
+        std::map<FaceType, std::vector<float>> vertsByFaceType;
 
         int index_counter = 0;
         for (size_t j = 0; j < mesh.num_face_vertices.size(); j++) {
             //we assume every face is a triangle for simplicity
             assert(mesh.num_face_vertices[j] == 3);
 
-            int materialId = mesh.material_ids[j];
             //recalculate index, default material is at index 0 otherwise it is at the end of materials
-            materialId = materialId == -1 ? 0 : materialId + materialOffSet + 1;
+            uint32_t materialId = mesh.material_ids[j] == -1 ? 0 : mesh.material_ids[j] + materialOffSet + 1;
             FaceType faceType(materialId);
 
             std::vector<float> vertices;
