@@ -44,7 +44,7 @@ void Camera::stopSprint() {
     sprintMultiplier = 1;
 }
 
-void Camera::updateUniforms(Program &program) const{
+void Camera::updateUniforms(const Program &program) const{
     program.setMatx4fv("projection", glm::perspective(glm::radians(fov), width / height, 0.1f, 10000.0f));
     program.setMatx4fv("view", glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp));
 }

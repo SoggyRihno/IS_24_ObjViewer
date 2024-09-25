@@ -11,9 +11,9 @@ class Program {
 public:
     Program(const std::string &vertPath, const std::string &fragPath);
 
-    ~Program();
-
     void use() const;
+
+    void deleteProgram();
 
     // utility uniform functions
     void setBool(const std::string &name, bool value) const;

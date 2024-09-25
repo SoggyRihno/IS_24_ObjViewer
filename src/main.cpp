@@ -5,66 +5,19 @@
 #include "Program.h"
 #include "Mesh.h"
 #include "Camera.h"
+#include "Loader.h"
 
 int main(int argc, const char *argv[]) {
-    const Window& window = Window::getInstance();
-    Program program("shaders/simple.vert", "shaders/simple.frag");
-
-    std::vector<float> verts = {
-            // Front face (z = 0.5f)
-            -0.5f, -0.5f, 0.5f,  // Bottom-left
-            0.5f, -0.5f, 0.5f,  // Bottom-right
-            0.5f, 0.5f, 0.5f,  // Top-right
-            0.5f, 0.5f, 0.5f,  // Top-right
-            -0.5f, 0.5f, 0.5f,  // Top-left
-            -0.5f, -0.5f, 0.5f,  // Bottom-left
-
-            // Back face (z = -0.5f)
-            -0.5f, -0.5f, -0.5f,  // Bottom-left
-            0.5f, -0.5f, -0.5f,  // Bottom-right
-            0.5f, 0.5f, -0.5f,  // Top-right
-            0.5f, 0.5f, -0.5f,  // Top-right
-            -0.5f, 0.5f, -0.5f,  // Top-left
-            -0.5f, -0.5f, -0.5f,  // Bottom-left
-
-            // Left face (x = -0.5f)
-            -0.5f, 0.5f, 0.5f,  // Top-right
-            -0.5f, 0.5f, -0.5f,  // Top-left
-            -0.5f, -0.5f, -0.5f,  // Bottom-left
-            -0.5f, -0.5f, -0.5f,  // Bottom-left
-            -0.5f, -0.5f, 0.5f,  // Bottom-right
-            -0.5f, 0.5f, 0.5f,  // Top-right
-
-            // Right face (x = 0.5f)
-            0.5f, 0.5f, 0.5f,  // Top-left
-            0.5f, 0.5f, -0.5f,  // Top-right
-            0.5f, -0.5f, -0.5f,  // Bottom-right
-            0.5f, -0.5f, -0.5f,  // Bottom-right
-            0.5f, -0.5f, 0.5f,  // Bottom-left
-            0.5f, 0.5f, 0.5f,  // Top-left
-
-            // Top face (y = 0.5f)
-            -0.5f, 0.5f, 0.5f,  // Top-left
-            0.5f, 0.5f, 0.5f,  // Top-right
-            0.5f, 0.5f, -0.5f,  // Bottom-right
-            0.5f, 0.5f, -0.5f,  // Bottom-right
-            -0.5f, 0.5f, -0.5f,  // Bottom-left
-            -0.5f, 0.5f, 0.5f,  // Top-left
-
-            // Bottom face (y = -0.5f)
-            -0.5f, -0.5f, 0.5f,  // Top-left
-            0.5f, -0.5f, 0.5f,  // Top-right
-            0.5f, -0.5f, -0.5f,  // Bottom-right
-            0.5f, -0.5f, -0.5f,  // Bottom-right
-            -0.5f, -0.5f, -0.5f,  // Bottom-left
-            -0.5f, -0.5f, 0.5f   // Top-left
-    };
-
-
-    Mesh mesh(ProgramType::VERT, verts);
-
-    program.use();
+    const Window &window = Window::getInstance();
+    Loader &loader = Loader::getInstance();
     Camera camera(1600, 900);
+
+
+    if (!loader.loadObjFromFile("conference.obj")) {
+        printf("Loading failed");
+        return -1;
+    }
+
 
     float deltaTime;
     float lastFrame = 0.0f;
@@ -80,14 +33,23 @@ int main(int argc, const char *argv[]) {
             std::this_thread::sleep_for(std::chrono::milliseconds(int(sleep * 1000)));
         }
 
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         window.updateCamera(camera, deltaTime);
-        camera.updateUniforms(program);
-        program.setMatx4fv("model", glm::mat4(1.0f));
 
+        window.updateCamera(camera, deltaTime);
+        const auto& meshes = loader.getMeshes();
+        for (const auto &object: loader.getObjects()){
+            for (const auto &index: object.meshIndices){
+                const auto & mesh = meshes.at(index);
+                const auto & program = mesh.getProgram();
+                program.use();
 
-        mesh.render();
+                camera.updateUniforms(program);
+                program.setMatx4fv("model", glm::mat4(1.0f));
+                mesh.render();
+            }
+
+        }
 
         window.update();
         frame++;

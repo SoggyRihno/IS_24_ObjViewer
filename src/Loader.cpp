@@ -23,11 +23,18 @@ Loader::Loader() {
     programs.emplace_back("shaders/Vert.vert", "shaders/Vert.frag");
     programs.emplace_back("shaders/VertNorm.vert", "shaders/VertNorm.frag");
     programs.emplace_back("shaders/VertNormTex.vert", "shaders/VertNormTex.frag");
+    materials.emplace_back();
 }
 
 Loader::~Loader() {
     for (const auto &item: textures) {
         glDeleteTextures(1, &item.second);
+    }
+    for (auto &mesh: meshes){
+        mesh.deleteMesh();
+    }
+    for ( auto &program: programs) {
+        program.deleteProgram();
     }
 }
 
@@ -90,7 +97,7 @@ Loader::Loader(const std::string &file, const std::string &folder) : file(file),
     const std::vector<tinyobj::shape_t> &shapes = reader.GetShapes();
     for (const auto &shape: reader.GetShapes()) {
         tinyobj::mesh_t mesh = shape.mesh;
-        printf("Loading Shape %d/%zu : %s \n\tFaces : %zu\n", counter++, shapes.size(), shape.name.c_str(),
+        printf("Loading Object %d/%zu : %s \n\tFaces : %zu\n", counter++, shapes.size(), shape.name.c_str(),
                mesh.num_face_vertices.size());
 
         int index_counter = 0;
@@ -174,7 +181,7 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
     const auto &mats = reader.GetMaterials();
     for (size_t i = 0; i < mats.size(); i++) {
         const auto &mat = mats.at(i);
-        printf("Loading Material : %zu/%zu %s \n", i, mats.size(), mat.name.c_str());
+        printf("Loading Material : %zu/%zu %s \n", i + 1, mats.size(), mat.name.c_str());
 
         Material material(mat.name);
         material.Ka = {mat.ambient[0], mat.ambient[1], mat.ambient[2]};
@@ -197,12 +204,10 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
     const auto &shapes = reader.GetShapes();
 
 
-
-
     for (size_t i = 0; i < shapes.size(); i++) {
         const auto &shape = shapes.at(i);
         auto mesh = shape.mesh;
-        printf("Loading Shape %zu/%zu : %s\n", i, shapes.size(), shape.name.c_str());
+        printf("Loading Object %zu/%zu : %s\n", i + 1, shapes.size(), shape.name.c_str());
 
         //each shape contains sub shapes with different materials
         // (ex. pencil has tip, shaft and eraser. all parts of a pencil but rendered differently)
@@ -214,7 +219,7 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
             assert(mesh.num_face_vertices[j] == 3);
 
             //recalculate index, default material is at index 0 otherwise it is at the end of materials
-            uint32_t materialId = mesh.material_ids[j] == -1 ? 0 : mesh.material_ids[j] + materialOffSet + 1;
+            uint32_t materialId = mesh.material_ids[j] == -1 ? 0 : mesh.material_ids[j] + materialOffSet;
             FaceType faceType(materialId);
 
             std::vector<float> vertices;
@@ -242,13 +247,56 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
             }
             //make sure all vertices match
             assert(vertices.size() == getStride(faceType.programType) * 3);
+
             auto &vec = vertsByFaceType[faceType];
             vec.insert(vec.end(), vertices.begin(), vertices.end());
+        }
+
+        objects.emplace_back(shape.name);
+        auto& indices = objects.at(objects.size() -1).meshIndices;
+        for (const auto &pair: vertsByFaceType) {
+            indices.push_back(createMesh(pair.first, pair.second));  // Store references to the meshes for this object.
         }
 
     }
 
     return true;
+}
+
+
+size_t Loader::createMesh(FaceType f, std::vector<float> vertices) {
+    const auto &program = getProgram(f.programType);
+    const auto &material = getMaterial(f.materialIndex);
+    //todo rip smooth shading
+    GLuint VAO, VBO;
+
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+
+    uint32_t stride = Loader::getStride(f.programType);
+    assert(vertices.size() % stride == 0);
+    GLsizei count = vertices.size() / stride;
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride * sizeof(float), (void *) 0);
+    glEnableVertexAttribArray(0);
+
+    //todo code is a little awkward ? maybe rewrite
+    if (stride > 3) {
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride * sizeof(float), (void *) (3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+    }
+    if (stride > 6) {
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride * sizeof(float), (void *) (6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+    }
+
+    glBindVertexArray(0);
+    meshes.emplace_back(VAO, VBO, count, program, material);
+    return meshes.size() - 1;
 }
 
 GLuint Loader::loadTexture(const std::string &path) {
@@ -283,9 +331,30 @@ GLuint Loader::loadTexture(const std::string &path) {
 int Loader::getOrLoadTexture(const std::string &tex_name, const std::string &folder) {
     if (tex_name.empty())
         return -1;
-    std::string path = folder + tex_name;
+    if (folder.at(folder.size() - 1) == '\\' || folder.at(folder.size() - 1) == '/') {
+        std::string path = folder + tex_name;
+    } else {
+        std::string path = folder + '/' + tex_name;
+    }
     if (textures.find(tex_name) == textures.end()) {
         textures[tex_name] = loadTexture(tex_name);
     }
     return (int) textures.at(tex_name);
+}
+
+const Program &Loader::getProgram(ProgramType p) {
+    //todo
+    return programs.at(size_t(p));
+}
+
+const Material &Loader::getMaterial(size_t index) {
+    return materials.at(index);
+}
+
+const std::vector<Object> &Loader::getObjects() {
+    return objects;
+}
+
+const std::vector<Mesh> &Loader::getMeshes() {
+    return meshes;
 }

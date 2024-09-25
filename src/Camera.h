@@ -22,7 +22,7 @@ public:
 
     void stopSprint();
 
-    void updateUniforms(Program &program) const;
+    void updateUniforms(const Program &program) const;
 
     void print() const;
 
@@ -35,10 +35,10 @@ private:
     float lastX;
     float lastY;
 
-    float sensitivity = 0.01f;
+    float sensitivity = 0.1f;
     float yaw = -90.0f;
     float pitch = 0.0f;
     float fov = 45.0f;
-    float speed = 25;
+    float speed = 15;
     float sprintMultiplier = 1;
 };

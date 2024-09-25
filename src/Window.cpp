@@ -34,6 +34,8 @@ Window::Window(int height, int width) :
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 }
 

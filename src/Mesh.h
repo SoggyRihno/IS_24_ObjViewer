@@ -1,22 +1,22 @@
 
 #pragma once
 
-
-#include "glad/glad.h"
+#include <glad/glad.h>
 #include "Material.h"
-#include "Loader.h"
 
 class Mesh {
 public:
-    Mesh(ProgramType programType, const std::vector<float> &vertices, Material material = {});
-
-    ~Mesh();
+    Mesh(GLuint VAO, GLuint VBO, GLsizei count, const Program &program, const Material &material);
 
     void render() const;
 
+    const Program &getProgram() const { return program; }
+
+    void deleteMesh();
+
+    const Material &material;
 private:
-    GLuint VAO, VBO;
-    size_t count;
-    Material material;
-    ProgramType programType;
+    const GLuint VAO, VBO;
+    const GLsizei count;
+    const Program &program;
 };

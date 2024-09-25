@@ -28,7 +28,7 @@ Program::Program(const std::string &vertPath, const std::string &fragPath) {
     glDeleteShader(fragmentShader);
 }
 
-Program::~Program() { glDeleteProgram(id); }
+void Program::deleteProgram() { glDeleteProgram(id); }
 
 uint32_t Program::createShader(uint32_t type, const std::string &shaderPath) {
     std::ifstream file(shaderPath, std::ios::binary);

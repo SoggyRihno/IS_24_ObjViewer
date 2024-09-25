@@ -57,17 +57,14 @@ target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/src)
 add_executable(${PROJECT_NAME}
         src/main.cpp
-        src/Window.h
         src/Window.cpp
         src/Program.cpp
-        src/Loader.h
-        src/Loader.h
-        src/Loader.cpp
         src/Material.cpp
-        src/Material.h
-        src/Mesh.h
         src/Mesh.cpp
         src/Camera.cpp
+        src/Loader.cpp
+        src/Mesh.h
+        src/Object.h
 )
 
 target_link_libraries(${PROJECT_NAME}
