@@ -20,7 +20,7 @@ ObjViewer is a lightweight 3D object viewer built with modern OpenGL. It enables
 
 1. Clone the repository:
    ```bash
-   git clone <repository_url>
+   git clone https://github.com/SoggyRihno/ObjViewer
    cd ObjViewer
    ```
 2. Create a build directory and navigate into it:
