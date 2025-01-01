@@ -79,3 +79,14 @@ target_link_libraries(${PROJECT_NAME}
 # Ensure OpenGL is linked
 find_package(OpenGL REQUIRED)
 target_link_libraries(${PROJECT_NAME}  OpenGL::GL)
+
+# Define the shaders source directory and destination directory
+set(SHADERS_DIR ${CMAKE_SOURCE_DIR}/shaders)
+set(SHADERS_DEST $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders)
+
+# Add a custom post-build command to copy the shaders
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_DEST}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SHADERS_DIR} ${SHADERS_DEST}
+        COMMENT "Copying shaders to binary directory"
+)
