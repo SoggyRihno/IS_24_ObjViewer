@@ -64,7 +64,8 @@ add_executable(${PROJECT_NAME}
         src/Camera.cpp
         src/Loader.cpp
         src/Mesh.h
-        src/Object.h
+        src/LightingManager.cpp
+        src/LightingManager.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

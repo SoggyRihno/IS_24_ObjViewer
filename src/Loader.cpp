@@ -5,24 +5,13 @@
 #include <tiny_obj_loader.h>
 #include <stb_image.h>
 #include <filesystem>
+#include <glm/glm.hpp>
 #include "Loader.h"
 
-uint32_t Loader::getStride(ProgramType type) {
-    switch (type) {
-        case ProgramType::VERT:
-            return 3;
-        case ProgramType::VERT_NORM:
-            return 6;
-        case ProgramType::VERT_NORM_TEX:
-            return 8;
-    }
-}
 
 Loader::Loader() {
     //todo make a more robust system, and use config
-    programs.emplace_back("shaders/Vert.vert", "shaders/Vert.frag");
-    programs.emplace_back("shaders/VertNorm.vert", "shaders/VertNorm.frag");
-    programs.emplace_back("shaders/VertNormTex.vert", "shaders/VertNormTex.frag");
+    programs.emplace_back("shaders/sparse.vert", "shaders/sparse.frag");
     materials.emplace_back();
 }
 
@@ -30,136 +19,35 @@ Loader::~Loader() {
     for (const auto &item: textures) {
         glDeleteTextures(1, &item.second);
     }
-    for (auto &mesh: meshes){
+    for (auto &mesh: meshes) {
         mesh.deleteMesh();
     }
-    for ( auto &program: programs) {
+    for (auto &program: programs) {
         program.deleteProgram();
     }
 }
 
-/*
- #define TINYOBJLOADER_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
+glm::vec3 computeFallbackNormal(const tinyobj::attrib_t &attrib,
+                                const tinyobj::mesh_t &mesh,
+                                int baseIndex) {
+    const tinyobj::index_t &idx0 = mesh.indices[baseIndex];
+    const tinyobj::index_t &idx1 = mesh.indices[baseIndex + 1];
+    const tinyobj::index_t &idx2 = mesh.indices[baseIndex + 2];
 
-#include <iostream>
-#include <filesystem>
-#include <tiny_obj_loader.h>
-#include <stb_image.h>
-#include "Loader.h"
+    auto getVertex = [&](int vertexIndex) {
+        return glm::vec3{
+                attrib.vertices[3 * vertexIndex],
+                attrib.vertices[3 * vertexIndex + 1],
+                attrib.vertices[3 * vertexIndex + 2]
+        };
+    };
 
-Loader::Loader(const std::string &file, const std::string &folder) : file(file), folder(folder) {
-    tinyobj::ObjReader reader;
-    tinyobj::ObjReaderConfig config;
-    config.mtl_search_path = folder;
+    glm::vec3 a = getVertex(idx0.vertex_index);
+    glm::vec3 b = getVertex(idx1.vertex_index);
+    glm::vec3 c = getVertex(idx2.vertex_index);
 
-    if (!reader.ParseFromFile(file, config)) {
-        if (!reader.Error().empty()) {
-            std::cerr << "TinyObjReader: " << reader.Error();
-            exit(-1); //todo panic on loader error
-        }
-    }
-
-    if (!reader.Warning().empty()) {
-        std::cout << "TinyObjReader: " << reader.Warning();
-    }
-
-
-    std::vector<Material> materials;
-    materials.emplace_back();
-    int counter = 1;
-    const auto &mats = reader.GetMaterials();
-    for (const auto &mat: mats) {
-        printf("Loading Material %d/%zu : %s \n", counter++, mats.size(), mat.name.c_str());
-
-
-        Material material;
-        material.Ka = {mat.ambient[0], mat.ambient[1], mat.ambient[2]};
-        material.Kd = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]};
-        material.Ks = {mat.specular[0], mat.specular[1], mat.specular[2]};
-        material.Ke = {mat.emission[0], mat.emission[1], mat.emission[2]};
-        material.Ns = mat.shininess;
-        material.d = mat.dissolve;
-        material.map_Ka = getOrLoadTexture(mat.ambient_texname);
-        material.map_Kd = getOrLoadTexture(mat.diffuse_texname);
-        material.map_Ks = getOrLoadTexture(mat.specular_texname);
-        material.map_Ke = getOrLoadTexture(mat.emissive_texname);
-        material.map_Ns = getOrLoadTexture(mat.specular_highlight_texname);
-        material.map_bump = getOrLoadTexture(mat.bump_texname);
-
-        materials.push_back(material);
-    }
-
-    //todo extract into methods
-    std::vector<std::vector<float>> vertByMat(materials.size() + 1, std::vector<float>());
-    counter = 1;
-    const tinyobj::attrib_t &attrib = reader.GetAttrib();
-    const std::vector<tinyobj::shape_t> &shapes = reader.GetShapes();
-    for (const auto &shape: reader.GetShapes()) {
-        tinyobj::mesh_t mesh = shape.mesh;
-        printf("Loading Object %d/%zu : %s \n\tFaces : %zu\n", counter++, shapes.size(), shape.name.c_str(),
-               mesh.num_face_vertices.size());
-
-        int index_counter = 0;
-        for (size_t i = 0; i < shape.mesh.num_face_vertices.size(); i++) {
-            //defaults to -1 add 1 to make defualt 0
-            int material = shape.mesh.material_ids[i] + 1;
-
-            //todo fix stop passing
-            for (int j = 0; j < 3; j++) {
-                tinyobj::index_t index = shape.mesh.indices[index_counter];
-
-                vertByMat[material].push_back(attrib.vertices[index.vertex_index * 3]);
-                vertByMat[material].push_back(attrib.vertices[(index.vertex_index * 3) + 1]);
-                vertByMat[material].push_back(attrib.vertices[(index.vertex_index * 3) + 2]);
-
-
-                if (index.normal_index >= 0) {
-                    vertByMat[material].push_back(attrib.normals[3 * size_t(index.normal_index)]);
-                    vertByMat[material].push_back(attrib.normals[3 * size_t(index.normal_index) + 1]);
-                    vertByMat[material].push_back(attrib.normals[3 * size_t(index.normal_index) + 2]);
-                } else {
-                    vertByMat[material].push_back(0);
-                    vertByMat[material].push_back(0);
-                    vertByMat[material].push_back(0);
-                }
-
-                if (index.texcoord_index >= 0) {
-                    vertByMat[material].push_back(attrib.texcoords[2 * size_t(index.texcoord_index)]);
-                    vertByMat[material].push_back(attrib.texcoords[2 * size_t(index.texcoord_index) + 1]);
-                } else {
-                    vertByMat[material].push_back(0);
-                    vertByMat[material].push_back(0);
-                }
-
-                index_counter++;
-            }
-        }
-    }
-
-    for (int i = 0; i < vertByMat.size(); ++i) {
-        if (!vertByMat[i].empty()){
-            meshes.emplace_back(materials[i],vertByMat[i]);
-        }
-    }
+    return glm::normalize(glm::cross(b - a, c - a));
 }
-
-Loader::~Loader() {
-    for (const auto &item: textures) {
-        glDeleteTextures(1, &item.second);
-    }
-}
-
-const std::vector<Mesh>& Loader::getMeshes() const{
-    return meshes;
-}
-
-
-
-
-
- */
-
 
 bool Loader::loadObjFromFile(const std::string &file, const std::string &folder) {
     tinyobj::ObjReader reader;
@@ -225,35 +113,36 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
             std::vector<float> vertices;
             for (int k = 0; k < 3; k++) {
                 tinyobj::index_t index = shape.mesh.indices[index_counter];
-
                 vertices.push_back(attrib.vertices[index.vertex_index * 3]);
-                vertices.push_back(attrib.vertices[(index.vertex_index * 3) + 1]);
-                vertices.push_back(attrib.vertices[(index.vertex_index * 3) + 2]);
-
+                vertices.push_back(attrib.vertices[index.vertex_index * 3 + 1]);
+                vertices.push_back(attrib.vertices[index.vertex_index * 3 + 2]);
 
                 if (index.normal_index > -1) {
-                    faceType.programType = ProgramType::VERT_NORM;
-                    vertices.push_back(attrib.normals[3 * size_t(index.normal_index)]);
-                    vertices.push_back(attrib.normals[3 * size_t(index.normal_index) + 1]);
-                    vertices.push_back(attrib.normals[3 * size_t(index.normal_index) + 2]);
+                    vertices.push_back(attrib.normals[3 * index.normal_index]);
+                    vertices.push_back(attrib.normals[3 * index.normal_index + 1]);
+                    vertices.push_back(attrib.normals[3 * index.normal_index + 2]);
+                } else {
+                    glm::vec3 normal = computeFallbackNormal(attrib, mesh, index_counter - k);
+                    vertices.insert(vertices.end(), {normal.x, normal.y, normal.z});
                 }
 
                 if (index.texcoord_index > -1) {
-                    faceType.programType = ProgramType::VERT_NORM_TEX;
                     vertices.push_back(attrib.texcoords[2 * size_t(index.texcoord_index)]);
                     vertices.push_back(attrib.texcoords[2 * size_t(index.texcoord_index) + 1]);
+                } else {
+                    vertices.insert(vertices.end(), {0, 0});
                 }
                 index_counter++;
             }
             //make sure all vertices match
-            assert(vertices.size() == getStride(faceType.programType) * 3);
+            assert(vertices.size() == STRIDE * 3);
 
             auto &vec = vertsByFaceType[faceType];
             vec.insert(vec.end(), vertices.begin(), vertices.end());
         }
 
         objects.emplace_back(shape.name);
-        auto& indices = objects.at(objects.size() -1).meshIndices;
+        auto &indices = objects.at(objects.size() - 1).meshIndices;
         for (const auto &pair: vertsByFaceType) {
             indices.push_back(createMesh(pair.first, pair.second));  // Store references to the meshes for this object.
         }
@@ -263,9 +152,8 @@ bool Loader::loadObjFromFile(const std::string &file, const std::string &folder)
     return true;
 }
 
-
 size_t Loader::createMesh(FaceType f, std::vector<float> vertices) {
-    const auto &program = getProgram(f.programType);
+    const auto &program = getProgram();
     const auto &material = getMaterial(f.materialIndex);
     //todo rip smooth shading
     GLuint VAO, VBO;
@@ -277,22 +165,17 @@ size_t Loader::createMesh(FaceType f, std::vector<float> vertices) {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-    uint32_t stride = Loader::getStride(f.programType);
-    assert(vertices.size() % stride == 0);
-    GLsizei count = vertices.size() / stride;
+    assert(vertices.size() % STRIDE == 0);
+    GLsizei count = vertices.size() / STRIDE;
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride * sizeof(float), (void *) 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
 
-    //todo code is a little awkward ? maybe rewrite
-    if (stride > 3) {
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride * sizeof(float), (void *) (3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-    }
-    if (stride > 6) {
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride * sizeof(float), (void *) (6 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-    }
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE * sizeof(float), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, STRIDE * sizeof(float), (void *) (6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
     meshes.emplace_back(VAO, VBO, count, program, material);
@@ -304,6 +187,7 @@ GLuint Loader::loadTexture(const std::string &path) {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
+    // Set texture wrapping and filtering options
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -320,31 +204,29 @@ GLuint Loader::loadTexture(const std::string &path) {
         if (!std::filesystem::exists(path)) {
             printf("Could not find image at : %s", path.c_str());
         } else {
-            printf("Failed to load texture at : %s", path.c_str());
+            fprintf(stderr, "Error: Failed to load texture at: %s\n", path.c_str());
         }
-        return -1;
+        glBindTexture(GL_TEXTURE_2D, 0);
+        return -1; // Error indicator
     }
+
     stbi_image_free(data);
+    glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture to prevent accidental modification
     return texture;
 }
+
 
 int Loader::getOrLoadTexture(const std::string &tex_name, const std::string &folder) {
     if (tex_name.empty())
         return -1;
-    if (folder.at(folder.size() - 1) == '\\' || folder.at(folder.size() - 1) == '/') {
-        std::string path = folder + tex_name;
-    } else {
-        std::string path = folder + '/' + tex_name;
-    }
     if (textures.find(tex_name) == textures.end()) {
-        textures[tex_name] = loadTexture(tex_name);
+        textures[tex_name] = loadTexture(folder + tex_name);
     }
     return (int) textures.at(tex_name);
 }
 
-const Program &Loader::getProgram(ProgramType p) {
-    //todo
-    return programs.at(size_t(p));
+const Program &Loader::getProgram() {
+    return programs.at(0);
 }
 
 const Material &Loader::getMaterial(size_t index) {

@@ -13,13 +13,14 @@ void Material::bind(const Program &program) const {
     program.set3fv("Ka", Ka);
     program.set3fv("Kd", Kd);
     program.set3fv("Ks", Ks);
-    program.set3fv("Ke", Ke);
+    //program.set3fv("Ke", Ke);
 
     program.setFloat("Ns", Ns);
     program.setFloat("d", d);
 
+
     uint32_t flags = 0;
-    /*
+
     if (map_Ka > -1) {
         program.bindTexture("ambientTexture", map_Ka, 0);
         flags |= 1 << USE_AMBIENT_TEXTURE;
@@ -44,7 +45,7 @@ void Material::bind(const Program &program) const {
         program.bindTexture("bumpTexture", map_bump, 5);
         flags |= 1 << USE_BUMP_TEXTURE;
     }
-     */
+
     program.setUInt("texFlags", flags);
 }
 

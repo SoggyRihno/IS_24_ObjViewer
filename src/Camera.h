@@ -6,7 +6,7 @@
 class Camera {
 public:
     //should be looking at center of screen at start
-    Camera(float width, float height) : height(height), width(width), lastX(width / 2.0f), lastY(height / 2.0f) {}
+    Camera(float height, float width) : height(height), width(width), lastX(width / 2.0f), lastY(height / 2.0f) {}
 
     void updateMouse(float x, float y);
 
@@ -20,14 +20,14 @@ public:
 
     void sprint(float mult);
 
-    void stopSprint();
-
     void updateUniforms(const Program &program) const;
 
     void print() const;
 
+    glm::vec3 getPosition();
+
 private:
-    glm::vec3 cameraPos{0.0f, 0.0f, 3.0f};
+    glm::vec3 cameraPos{0.0f, 0.0f, 0.0f};
     glm::vec3 cameraFront{0.0f, 0.0f, -1.0f};
     glm::vec3 cameraUp{0.0f, 1.0f, 0.0f};
     float width;
@@ -39,6 +39,6 @@ private:
     float yaw = -90.0f;
     float pitch = 0.0f;
     float fov = 45.0f;
-    float speed = 15;
+    float speed = .05;
     float sprintMultiplier = 1;
 };

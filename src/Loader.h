@@ -4,34 +4,20 @@
 #include "Material.h"
 #include "Mesh.h"
 
-enum class ProgramType {
-    VERT,
-    VERT_NORM,
-    VERT_NORM_TEX,
-};
 
 //todo smooth shading is ignored
-enum class ShadingType {
-    Smooth,
-    Normal,
-};
+
+const uint32_t STRIDE = 8;
 
 struct FaceType {
     uint32_t materialIndex = 0;
-    ProgramType programType = ProgramType::VERT;
-    ShadingType shadingType = ShadingType::Smooth;
 
-    FaceType(uint32_t i): materialIndex(i) {};
-    ~FaceType() =default;
+    FaceType(uint32_t i) : materialIndex(i) {};
 
-    bool operator<(const FaceType& other) const {
-        if (materialIndex != other.materialIndex) {
-            return materialIndex < other.materialIndex;
-        }
-        if (shadingType != other.shadingType) {
-            return shadingType < other.shadingType;
-        }
-        return programType < other.programType;
+    ~FaceType() = default;
+
+    bool operator<(const FaceType &other) const {
+        return materialIndex < other.materialIndex;
     }
 };
 
@@ -39,7 +25,7 @@ struct Object {
     const std::string name;
     std::vector<size_t> meshIndices{};
 
-    Object(std::string name) : name(std::move(name)){};
+    Object(std::string name) : name(std::move(name)) {};
 };
 
 
@@ -53,13 +39,13 @@ public:
 
     bool loadObjFromFile(const std::string &file, const std::string &folder = "");
 
-    static uint32_t getStride(ProgramType type);
+    //static uint32_t getStride(ProgramType type);
 
-    const Program& getProgram(ProgramType p = ProgramType::VERT);
+    const Program &getProgram();
 
-    const std::vector<Mesh>& getMeshes();
+    const std::vector<Mesh> &getMeshes();
 
-    const std::vector<Object>& getObjects();
+    const std::vector<Object> &getObjects();
 
     size_t createMesh(FaceType f, std::vector<float> vertices);
 
@@ -78,6 +64,5 @@ private:
 
     int getOrLoadTexture(const std::string &tex_name, const std::string &folder);
 
-
-    const Material& getMaterial(size_t index = 0);
+    const Material &getMaterial(size_t index = 0);
 };

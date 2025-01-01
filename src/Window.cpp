@@ -1,11 +1,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
+#include <iostream>
 #include "Window.h"
 
 
-Window::Window(int height, int width) :
-        height(height), width(width) {
+Window::Window(int height, int width) : height(height), width(width) {
 
     if (!glfwInit()) {
         throw std::runtime_error("Could not init GLFW");
@@ -34,8 +34,10 @@ Window::Window(int height, int width) :
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
+    //glDisable(GL_CULL_FACE);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 }
 
@@ -45,12 +47,19 @@ Window::~Window() {
 }
 
 
-void Window::update() const{
+void Window::update() {
     glfwSwapBuffers(window);
     glfwPollEvents();
 }
 
-void Window::updateCamera(Camera &camera, float deltaTime) const{
+void Window::updateUniforms(float deltaTime, const Program &program) {
+    updateCamera(deltaTime);
+    camera.updateUniforms(program);
+    updateLights(deltaTime);
+    lightingManager.updateUniforms();
+}
+
+void Window::updateCamera(float deltaTime) {
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
         camera.sprint(81);
     else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
@@ -73,7 +82,68 @@ void Window::updateCamera(Camera &camera, float deltaTime) const{
     camera.updateMouse(static_cast<float>(x), static_cast<float>(y));
 }
 
-bool Window::shouldClose() const {
-    return glfwWindowShouldClose(window);
+void Window::updateLights(float deltaTime) {
+    if (glfwGetKey(window, GLFW_KEY_SEMICOLON) == GLFW_PRESS) {
+        lightingManager.spawnLight(camera.getPosition());
+    }
+    if (glfwGetKey(window, GLFW_KEY_SEMICOLON) == GLFW_RELEASE) {
+        lightingManager.spawnLightReset();
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_APOSTROPHE) == GLFW_PRESS) {
+        lightingManager.deleteCurrentLight();
+    }
+    if (glfwGetKey(window, GLFW_KEY_APOSTROPHE) == GLFW_RELEASE) {
+        lightingManager.deleteCurrentLightReset();
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_SEMICOLON) == GLFW_RELEASE)
+        lightingManager.nextLightReset();
+    if (glfwGetKey(window, GLFW_KEY_APOSTROPHE) == GLFW_RELEASE)
+        lightingManager.previousLightReset();
+
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) { // next
+        lightingManager.nextLight();
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) { // previous
+        lightingManager.previousLight();
+    }
+
+    //set current position
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+        lightingManager.setCurrentLightPosition(camera.getPosition());
+    }
+
+    // inc/dec color or intensity
+    int sign = 0;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+        sign++;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        sign--;
+    }
+
+    if (sign != 0) {
+        glm::vec3 color(0.0f);
+        if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)// red
+            color.x = sign;
+        if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS) // green
+            color.y = sign;
+        if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) // blue
+            color.z = sign;
+
+        if (color.x == 0 && color.y == 0 && color.z == 0) {
+            lightingManager.incrementCurrentLightIntensity(sign, deltaTime);
+        } else {
+            lightingManager.incrementCurrentLightColor(color, deltaTime);
+        }
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
+        lightingManager.debugCurrentLight();
+    }
 }
 
+bool Window::shouldClose() {
+    return glfwWindowShouldClose(window);
+}
