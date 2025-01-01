@@ -47,12 +47,6 @@ void Camera::updateUniforms(const Program &program) const {
     program.set3fv("lightPos", cameraPos);
 }
 
-void Camera::print() const {
-    printf("x : %.2f, y : %.2f, z : %.2f\n", cameraPos.x, cameraPos.y, cameraPos.z);
-    printf("pitch : %.2f, yaw : %.2f\n", pitch, yaw);
-    printf("\n");
-}
-
 glm::vec3 Camera::getPosition() {
     return cameraPos;
 }

@@ -18,7 +18,7 @@ public:
 
     void right(float deltaTime);
 
-    void sprint(float mult);
+    void sprint(float mult = 1);
 
     void updateUniforms(const Program &program) const;
 

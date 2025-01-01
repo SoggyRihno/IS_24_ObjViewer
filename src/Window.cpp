@@ -61,9 +61,11 @@ void Window::updateUniforms(float deltaTime, const Program &program) {
 
 void Window::updateCamera(float deltaTime) {
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-        camera.sprint(81);
+        camera.sprint(.5);
     else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camera.sprint(9);
+    else
+        camera.sprint();
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.forward(deltaTime);
