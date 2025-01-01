@@ -1,62 +1,47 @@
-
-
+#include <fstream>
+#include <iostream>
 #include "Program.h"
+#include <glm/gtc/type_ptr.hpp>
 
-Program::Program(std::string vertexPath, std::string fragmentPath) {
-    unsigned int vertexShader = CreateShader(GL_VERTEX_SHADER, std::move(vertexPath));
-    unsigned int fragmentShader = CreateShader(GL_FRAGMENT_SHADER, std::move(fragmentPath));
+//todo should exceptions be used ? no reason to continue execution if shaders are fucked ?
+//exceptions are only non-performant if the are thrown but we arent catching them anyways
 
-    ID = glCreateProgram();
-    glAttachShader(ID, vertexShader);
-    glAttachShader(ID, fragmentShader);
-    glLinkProgram(ID);
+Program::Program(const std::string &vertPath, const std::string &fragPath) {
+    uint32_t vertexShader = createShader(GL_VERTEX_SHADER, vertPath);
+    uint32_t fragmentShader = createShader(GL_FRAGMENT_SHADER, fragPath);
+
+    id = glCreateProgram();
+    glAttachShader(id, vertexShader);
+    glAttachShader(id, fragmentShader);
+    glLinkProgram(id);
+
     int success;
-    char infoLog[512];
-    glGetProgramiv(ID, GL_LINK_STATUS, &success);
+    char infoLog[1024];
+    glGetProgramiv(id, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        std::cout << "ERROR::SHADER_PROGRAM_LINKING_FAILED of type:\n" << infoLog
-                  << "\n -- --------------------------------------------------- -- " << std::endl;
+        glGetProgramInfoLog(id, 1024, nullptr, infoLog);
+        printf("Error Shader Program Failed Linking\n%s\n", infoLog);
+
     }
 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 }
 
-void Program::use() {
-    glUseProgram(ID);
-}
+void Program::deleteProgram() { glDeleteProgram(id); }
 
-void Program::setBool(const std::string &name, bool value) const {
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), (int) value);
-}
+uint32_t Program::createShader(uint32_t type, const std::string &shaderPath) {
+    std::ifstream file(shaderPath, std::ios::binary);
+    if (!file.is_open()) {
+        printf("Failed to open file\n%s\n", shaderPath.c_str());
+    }
 
-void Program::setInt(const std::string &name, int value) const {
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
-}
-
-void Program::setFloat(const std::string &name, float value) const {
-    glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
-}
-
-void Program::setMatx4fv(std::string name, glm::mat4 value) {
-    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()),
-                       1, GL_FALSE,
-                       glm::value_ptr(value)
-    );
-}
-
-void Program::set3fv(std::string name, glm::vec3 value) {
-    glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(value));
-}
-
-unsigned int Program::CreateShader(unsigned int type, std::string path) {
-    std::ifstream in(path);
-    std::string contents((std::istreambuf_iterator<char>(in)),
+    std::string contents((std::istreambuf_iterator<char>(file)),
                          std::istreambuf_iterator<char>());
 
     const char *source = contents.c_str();
-    unsigned int shader = glCreateShader(type);
+
+    uint32_t shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
 
@@ -65,9 +50,47 @@ unsigned int Program::CreateShader(unsigned int type, std::string path) {
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-        std::cout << "ERROR::" << (type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT") << "_SHADER_COMPILATION_ERROR\n"
-                  << infoLog
-                  << "\n -- --------------------------------------------------- -- " << std::endl;
+        if (type == GL_VERTEX_SHADER){
+            printf("Vertex shader compilation error\n%s\n", infoLog);
+        } else {
+            printf("Vertex fragment compilation error\n%s\n", infoLog);
+        }
     }
     return shader;
 }
+
+void Program::use() const {
+    glUseProgram(id);
+}
+
+void Program::setBool(const std::string &name, bool value) const {
+    glUniform1i(glGetUniformLocation(id, name.c_str()), (int) value);
+}
+
+void Program::setInt(const std::string &name, int value) const {
+    glUniform1i(glGetUniformLocation(id, name.c_str()), value);
+}
+void Program::setUInt(const std::string &name, uint32_t value) const {
+    glUniform1ui(glGetUniformLocation(id, name.c_str()), value);
+}
+
+void Program::setFloat(const std::string &name, float value) const {
+    glUniform1f(glGetUniformLocation(id, name.c_str()), value);
+}
+
+void Program::set3fv(const std::string &name, glm::vec3 value) const {
+    glUniform3fv(glGetUniformLocation(id, name.c_str()), 1, glm::value_ptr(value));
+}
+
+void Program::setMatx4fv(const std::string &name, glm::mat4 value) const {
+    glUniformMatrix4fv(glGetUniformLocation(id, name.c_str()),
+                       1, GL_FALSE,
+                       glm::value_ptr(value)
+    );
+}
+
+void Program::bindTexture(const std::string &name, uint32_t texture, uint32_t textureUnit) const {
+    glActiveTexture(GL_TEXTURE0 + textureUnit);  // Activate the texture unit
+    glBindTexture(GL_TEXTURE_2D, texture);
+}
+
