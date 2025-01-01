@@ -39,10 +39,17 @@ ObjViewer is a lightweight 3D object viewer built with modern OpenGL. It enables
 ## Running the Application
 
 1. Prepare a `.obj` file and its associated material/texture files. The obj, mtl, png, ect must be in the same folder. The ones I used can be found here https://casual-effects.com/data/index.html.
-3. Run the application from the command line, specifying the path to the `.obj` file:
+2. Run the application from the command line, specifying the path to the `.obj` file:
+
+### Linux
    ```bash
    ./ObjViewer path/to/model.obj
    ```
+### Windows
+   ```cmd 
+   Debug\ObjViewer.exe path\to\model.obj
+   ```
+
 
 ## Controls
 
